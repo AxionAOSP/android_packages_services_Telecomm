@@ -1700,13 +1700,9 @@ public class InCallController extends CallsManagerListenerBase implements
 
         if ((oldState == CallState.RINGING || oldState == CallState.DIALING) &&
                 (newState == CallState.ACTIVE || newState == CallState.ANSWERED)) {
-            boolean vibrateOnConnect = Settings.System.getIntForUser(mContext.getContentResolver(),
-                Settings.System.VIBRATE_ON_CONNECT, 0, UserHandle.USER_CURRENT) == 1;
-            if (vibrateOnConnect) vibrate(100, 200, 0);
+            vibrate(100, 200, 0);
         } else if (oldState == CallState.ACTIVE && newState == CallState.DISCONNECTED) {
-            boolean vibrateOnDisconnect = Settings.System.getIntForUser(mContext.getContentResolver(),
-                Settings.System.VIBRATE_ON_DISCONNECT, 0, UserHandle.USER_CURRENT) == 1;
-            if (vibrateOnDisconnect) vibrate(100, 200, 0);
+            vibrate(100, 200, 0);
         }
         updateCall(call);
     }
