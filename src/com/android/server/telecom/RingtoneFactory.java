@@ -28,6 +28,8 @@ import android.net.Uri;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.provider.Settings;
+import android.telecom.PhoneAccountHandle;
+import android.telephony.SubscriptionManager;
 
 import android.telecom.Log;
 import android.text.TextUtils;
@@ -96,10 +98,27 @@ public class RingtoneFactory {
             boolean isUserUnlocked = mFeatureFlags.telecomResolveHiddenDependencies()
                     ? um.isUserUnlocked(contextToUse.getUser())
                     : um.isUserUnlocked(contextToUse.getUserId());
-            Uri defaultRingtoneUri;
+            Uri defaultRingtoneUri = null;
+
             if (isUserUnlocked) {
-                defaultRingtoneUri = RingtoneManager.getActualDefaultRingtoneUri(contextToUse,
-                        RingtoneManager.TYPE_RINGTONE);
+                PhoneAccountHandle targetAccount = incomingCall.getTargetPhoneAccount();
+                if (targetAccount != null) {
+                    int subId = mCallsManager.getPhoneAccountRegistrar()
+                            .getSubscriptionIdForPhoneAccount(targetAccount);
+                    if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+                        String perSimUri = Settings.System.getStringForUser(
+                                contextToUse.getContentResolver(),
+                                "ringtone_sub_" + subId,
+                                contextToUse.getUserId());
+                        if (!TextUtils.isEmpty(perSimUri)) {
+                            defaultRingtoneUri = Uri.parse(perSimUri);
+                        }
+                    }
+                }
+                if (defaultRingtoneUri == null) {
+                    defaultRingtoneUri = RingtoneManager.getActualDefaultRingtoneUri(contextToUse,
+                            RingtoneManager.TYPE_RINGTONE);
+                }
                 if (defaultRingtoneUri == null) {
                     Log.i(this, "getRingtone: defaultRingtoneUri for user is null.");
                 }
