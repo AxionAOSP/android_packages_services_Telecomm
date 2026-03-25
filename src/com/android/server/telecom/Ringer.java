@@ -26,6 +26,7 @@ import android.annotation.Nullable;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.Person;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.res.Resources;
 import android.media.AudioAttributes;
@@ -39,6 +40,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.provider.Settings;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.VibrationAttributes;
@@ -79,6 +81,10 @@ import java.util.function.Supplier;
 @VisibleForTesting
 public class Ringer {
     private static final String TAG = "TelecomRinger";
+
+    private static final String INCALL_VIBRATE_ON_CONNECT = "incall_vibrate_on_connect";
+    private static final String INCALL_VIBRATE_ON_DISCONNECT = "incall_vibrate_on_disconnect";
+    private static final String INCALL_VIBRATE_ON_CALL_WAITING = "incall_vibrate_on_call_waiting";
 
     /**
      * Abstraction of vibration.  We used to leverage SystemVibrator which implements the abstract
@@ -178,13 +184,27 @@ public class Ringer {
     };
 
     private static final long[] CALL_CONNECTED_VIBRATION_PATTERN = {
-            0, // No delay before starting
-            1000, // How long to vibrate
+            0, 80, 60, 120
     };
 
     private static final int[] CALL_CONNECTED_VIBRATION_AMPLITUDE = {
-            0, // No delay before starting
-            255, // Vibrate full amplitude
+            0, 180, 0, 140
+    };
+
+    private static final long[] CALL_DISCONNECT_VIBRATION_PATTERN = {
+            0, 60, 80, 60
+    };
+
+    private static final int[] CALL_DISCONNECT_VIBRATION_AMPLITUDE = {
+            0, 120, 0, 100
+    };
+
+    private static final long[] CALL_WAITING_VIBRATION_PATTERN = {
+            0, 80, 60, 80, 60, 80
+    };
+
+    private static final int[] CALL_WAITING_VIBRATION_AMPLITUDE = {
+            0, 140, 0, 140, 0, 140
     };
 
     /**
@@ -735,6 +755,7 @@ public class Ringer {
             mCallWaitingPlayer =
                     mPlayerFactory.createPlayer(call, InCallTonePlayer.TONE_CALL_WAITING);
             mCallWaitingPlayer.startTone();
+            vibrateForCallWaiting();
         }
     }
 
@@ -1112,6 +1133,44 @@ public class Ringer {
                 mVibrator.cancel();
                 mIsVibrating = false;
             });
+        }
+    }
+
+    private boolean isIncallVibrationEnabled(String setting) {
+        final ContentResolver cr = mContext.getContentResolver();
+        return Settings.Secure.getIntForUser(cr, setting, 0,
+                cr.getUserId()) == 1;
+    }
+
+    private void doIncallVibration(long[] pattern, int[] amplitude) {
+        mAsyncTaskExecutor.execute(() -> {
+            final VibrationEffect effect =
+                    mVibrationEffectProxy.createWaveform(pattern, amplitude, -1);
+            final VibrationAttributes attrs = new VibrationAttributes.Builder()
+                    .setUsage(VibrationAttributes.USAGE_NOTIFICATION)
+                    .build();
+            mVibrator.vibrate(effect, attrs);
+        });
+    }
+
+    public void vibrateForCallConnected() {
+        if (isIncallVibrationEnabled(INCALL_VIBRATE_ON_CONNECT)) {
+            doIncallVibration(CALL_CONNECTED_VIBRATION_PATTERN,
+                    CALL_CONNECTED_VIBRATION_AMPLITUDE);
+        }
+    }
+
+    public void vibrateForCallDisconnected() {
+        if (isIncallVibrationEnabled(INCALL_VIBRATE_ON_DISCONNECT)) {
+            doIncallVibration(CALL_DISCONNECT_VIBRATION_PATTERN,
+                    CALL_DISCONNECT_VIBRATION_AMPLITUDE);
+        }
+    }
+
+    public void vibrateForCallWaiting() {
+        if (isIncallVibrationEnabled(INCALL_VIBRATE_ON_CALL_WAITING)) {
+            doIncallVibration(CALL_WAITING_VIBRATION_PATTERN,
+                    CALL_WAITING_VIBRATION_AMPLITUDE);
         }
     }
 }
