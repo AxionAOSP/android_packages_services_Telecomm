@@ -5507,6 +5507,10 @@ public class CallsManager extends Call.ListenerBase
                 mRinger.startVibratingForOutgoingCallActive();
             }
 
+            if (newState == CallState.ACTIVE) {
+                mRinger.vibrateForCallConnected();
+            }
+
             // Unfortunately, in the telephony world the radio is king. So if the call notifies
             // us that the call is in a particular state, we allow it even if it doesn't make
             // sense (e.g., STATE_ACTIVE -> STATE_RINGING).
@@ -5518,6 +5522,7 @@ public class CallsManager extends Call.ListenerBase
                 if ((oldState != CallState.AUDIO_PROCESSING) &&
                         (newState == CallState.DISCONNECTED)) {
                     maybeSendPostCallScreenIntent(call);
+                    mRinger.vibrateForCallDisconnected();
                 }
                 int disconnectCode = DisconnectCause.UNKNOWN;
                 if (call.getDisconnectCause() != null) {
